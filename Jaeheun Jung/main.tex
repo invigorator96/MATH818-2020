@@ -6,7 +6,7 @@
 % Korean packages
 \usepackage[T1]{fontenc}
 \usepackage{CJKutf8}
-
+\usepackage[ruled,vlined]{algorithm2e}
 \oddsidemargin 0pt
 \evensidemargin 0pt
 \marginparwidth 40pt
@@ -17,18 +17,19 @@
 \textwidth 6.65in
 \linespread{1.2}
 
-\title{Tverberg's theorem is 50 years old\\
+\title{Optimization on Deep learning\\
 	\large MATH 818.01 Midterm Survey
 }
 \author{Jaeheun Jung}
 \date{}
 
+\newtheorem{definition}{Definition}
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
 \newtheorem{conjecture}[theorem]{Conjecture}
 
 \newcommand{\rr}{\mathbb{R}}
-
+\newcommand{\bigzero}{\mbox{\normalfont\Large\bfseries D}}
 \newcommand{\al}{\alpha}
 \DeclareMathOperator{\conv}{conv}
 \DeclareMathOperator{\aff}{aff}
@@ -38,59 +39,273 @@
 	\maketitle
 	
 	\begin{abstract}
-		This survey presents an overview of the advances around Tverberg's theorem, focusing on the last two decades.  We discuss the topological, linear-algebraic, and combinatorial aspects of Tverberg's theorem and its applications.  The survey contains several open problems and conjectures.
-		\begin{CJK}{UTF8}{mj}
-			한글도 사용 가능합니다.
-		\end{CJK}
+		Rescently, the deep neural networks succeded in many machine learning tasks and began to be used in mary research areas. To make useful deep learning model we should gather the data and train the proposed model. This survey presents an brief overview of training in deep learning in various perspectives including loss function, optimizer, parallelism and training strategies. The survey also includes the post training process for model compression.		
 	\end{abstract}
 	
 	\section{Introduction}\label{section-introduction}
+	The deep learning methods based on multilayer perceptrons are recently succeded in various kinds of tasks in machine learning. 
 	
-	\begin{CJK}{UTF8}{mj}
-		본문에서도 당연히 한글 사용 가능합니다..만, CJK 환경으로 지정해야 합니다. 텍 소스를 보세요.
-	\end{CJK}
+	For example, the convolutional neural network method had been succeeded in computer vision that treats image data and recuurent neural network method worked well to treat serial datastes. Every deep learning methods include the deep neural net architecture inside their models as an efficient function estimator.
+
+	To perform the training of deep learning architecture, we need to define optimization problem and apply the optimization with optimizers. Note that there are some configurations needed to be decides by users. More precisely we need to decide the loss function, batch size and optimizer with optimizer configurations such as learning rate. Moreover there are several algorithms for applying above parameter updates due to parallelism of dataset and model for backpropagation.
+
+	In this paper we will see how it works and the differences betwwen various options for each configurations.
 	
-	Tverberg's theorem has been a cornerstone of combinatorial convexity for over fifty years. Its impact and influence is only comparable to that of the famous and classic theorems of Carath\'eodory and Helly. This gem lies at the crossroads of combinatorics, topology, and linear algebra, and continues to yield challenging and interesting open problems.  Its states the following.%  If we denote by $\conv(S)$ the convex hull of a set $S \subset \rr^d$, it says the following
 	
-	\begin{theorem}[Helge Tverberg 1966 \cite{Tverberg:1966tb}]
-		Given $(r-1)(d+1)+1$ points in $\rr^d$, there is a partition of them into $r$ parts whose convex hulls intersect.
-	\end{theorem}
+	\section{Deep learning architecture}
+	The DNN architecture is an universal function approximator consist of multiple artificial neurons and their connections. More precisely, there are multiple hidden layers and nodes located on each layers. Each nodes recieves input and sents the output information to nodes on next layer. The input of nodes on next layer can be represented as weighted sum of outputs of previous nodes.
+
+	This DNN architecture was deribed by imitating biological brain which is complicated complex consist of connection of huge number of neurons.
+
+	As an mathematical object, the DNN architecture can be described as composition of sequence of nonlinear activation and weighted summation. Since the weighted sum can be written as matrix multiplication we can consider the weights as the matrix formed parameters and DNN architecture as class of functions parametrized by matrices.
+
+	We train the DNN model from data by minimizing some real-valued function called loss fucntion. There are various kind of loss functions represents the measurement of similarity between model function and real data distribution.
+
+	Let $y_n^{true}=(y_{n1}^{true},\cdots, y_{nk}^{true})\in\mathbb{R}^k$ be real data and $y_n^{pred}$ be output of the model function with respect to the input $x$. Note that $y_n^{pred}$ is parametrized by parmaeters $\theta$.
+
+	There are most commonly used loss functions for deep learning:
+
+	\begin{enumerate}		
+		\item The mean-squared error mse is defined with
+		\begin{equation*}
+			L(\theta)=\frac{1}{n}\sum_{i=1}^n (y_i^{true}-y_i^{pred})^2
+		\end{equation*}
+		\item The cross-entropy loss is defined as
+		\begin{equation*}
+			L(\theta)=\frac{1}{n}\sum_{i=1}^n \sum_{j=1}^{k}-y_{ij}^{true}log y_{ij}^{pred}
+		\end{equation*}
+	\end{enumerate}
+
+	Applying optimization to minimize the loss function we can train our model fits to the given data.
+
+	\section{Gradient descent optimization algorithm}
+	To train our deep learning model, we should minimize the loss function with respect to the parameters. Our goal is to apply optimization as efficiently as possible.
+
+	To achieve the goal, we use an first-order iterative optimization algorithm which called gradient descent method in general. Of course there are another optimization methods (e.g. optimizers based on Newton's method) but they require huge computation resources due to large amounts of parameters.
+
+	Even the second order method is hard to be implemented because hessian matrix is too large and difficult to compute.
+
+	The gradient descent algorithm allows us to find local minimum with by taking steps which proportional to negative direction of gradient because gradient direction represents fastest increasing direction of objective function.
+
+
+	The gradient descent algorithm can be written as
+
+	\begin{algorithm}[H]
+		\SetAlgoLined
+		\textbf{Input} loss function $L(\theta)$ and learning rate $\mu$\;
+		 initialize weight $\bar{\theta}=(\theta_1,\cdots,\theta_n)\in\mathbb{R}^n$\;
+		 initialize timestamp $t\longleftarrow 0$\;
+		 \Repeat{converge}{
+			 $\theta^{new}\longleftarrow\bar{\theta}$\;
+			\For{$i=1,\cdots,n$}{
+				$\theta^{new}_i\longleftarrow \theta^{new}_i-\mu \frac{\partial L}{\partial \theta_i}|_{\theta=\bar{\theta}}$
+			}
+			$\bar{\theta}\longleftarrow \theta^{new}$
+		 }
+		 
+		 \caption{Gradient Descent}
+	\end{algorithm}
 	
-	\begin{figure}
-		\centerline{\includegraphics[scale=1]{fig1-Tverberg}}
-		\caption{An example of a Tverberg partition.  The partition is not unique.}
-	\end{figure}
+	This algorithm had been improved in many ways which would be introduced in later sections.
+
+	\section{Advanced optimizers}
+	Recently, there are many improvements have made by idea of adaptive learning rate and momentum to accelerate the optimization. They update the parameters by referring previous gradients.
+
+	Since training methods are based on the gradient descent, we can only find local minima. This can be problem if the model defined on poor local minima of loss function will perform bad accuracy. However, the advance optimizers described in this section allows us to avoid this situation that trapped in local minima.
+
+	Also, it is considered that advanced optimizers are faster in convergence.
+	\subsection{SGD with momentum}
+	The momentum method computes momentum of the gradient which represents the exponentially weighted sum of gradietns. This allows to avoid some local minima because the $v^{t+1}$ can be nonzero at local minima $\theta^t$. The update rule of momentum method can be written as
+	\begin{equation*}
+		\begin{aligned}
+			v^{t+1}=\gamma v^t-\eta \nabla L(\theta^t)\\
+			\theta^{t+1}=\theta^t+v^{t+1}
+		\end{aligned}
+	\end{equation*}
+	The Momentum method helps to accelerate SGD in the relevant direction and dampen the oscillations which can be observerd with large learning rates.
+	\subsection{\cite{duchi2011adaptive} Adagrad}
+	The adaptive gradient algorithm(Adagrad) computes adaptive learning rates by reffering size of previous gradients. Its update rule can be described as
+	\begin{equation*}
+		\begin{aligned}
+			&G_\theta^t=\sum_{i=0}^t(\nabla L(\theta^i))^2\\
+			&\theta^{t+1}=\theta^t-\frac{\eta}{\sqrt{G_\theta^t+\epsilon}}\nabla L(\theta^t)
+		\end{aligned} 
+	\end{equation*}
+
+	The $G_\theta^t$ is sum of squares of all previous gradients. Thus $G_\theta^t$ is increasing with respect to timestamp $t$. Therefore it affects the learinng rate to decrease. However, this became problem because $G_\theta^t$ is getting too large for large $t$.
+
+	\subsection{\cite{hinton2012neural} RMSprop}
+	Root mean square propagation introduces idea of moving average to prevent the learning rate from getting too small. 
+	The update rule for RMSprop is given with:
+	\begin{equation*}
+		\begin{aligned}
+			G_\theta^t=\gamma G_\theta^{t-1}+(1-\gamma)(\nabla L(\theta^t))^2\\
+			\theta^{t+1}=\theta^t-\frac{\eta}{\sqrt{G_\theta^t+\epsilon}}\nabla L(\theta^t)
+		\end{aligned}
+	\end{equation*}
+
+	The new update rule for $G_\theta^t$ sets smaller weight for past information and this gives us some upper bound of $G_\theta^t$. Therefore, the adaptive learning rate won't be too small.
+
+	\subsection{\cite{kingma2014adam} Adam}
+	The Adam(adaptive moment estimation) optimizer is very popular optimizer which takes advatages of Adagrad and RMSprop. Adam optimizer computes first and second moment estimation with bias-correction. The update rule for Adam optimizer is written as:
+	\begin{equation*}
+		\begin{aligned}
+			&\hat{m_\theta}=\frac{m_\theta^{t+1}}{1-\beta_1^{t+1}}\mbox{ where } m_\theta^{t+1}=\beta_1 m_\theta^t+(1-\beta_1)\nabla L(\theta^t)\\
+			&\hat{G_\theta}=\frac{G_\theta^{t+1}}{1-\beta_2^{t+1}}\mbox{ where } G_\theta^{t+1}=\beta_2 G_\theta^t+(1-\beta_2)(\nabla L(\theta^t))^2\\
+			&\theta^{t+1}=\theta^t-\eta\frac{\hat{m_\theta}}{\sqrt{\hat{G_\theta}}+\epsilon}
+		\end{aligned}
+	\end{equation*}
+
+	In general, Adam optimizer converges faster than any other optimizers. We can use $\beta_1=0.9,\beta_2=0.999$ and $\epsilon=10^{-8}$ as default.
+	\subsection{\cite{liu2019variance} RAdam}
+	There is new state-of-the-art optimizer introduced rescently. It is called Rectified Adam(RAdam) optimizer. It rectifies the variance of adaptive learning rate. The update rule for RAdam is written as:
+	\begin{equation*}
+		\begin{aligned}
+			&v_t=\beta_2 v_{t-1}+(1-\beta_2)(\nabla L(\theta^t))^2\\
+			&\hat{m_t}=\frac{m_t}{1-\beta_1^t}\mbox{ where }m_t=\beta_1m_{t-1}+(1-\beta_1)\nabla L(\theta_t)\\
+			&\rho_t=\rho_{\infty}-2t\frac{\beta_2^t}{1-\beta_2^t} \mbox{ where }\rho_{\infty}=\frac{2}{1-\beta_2}-1\\
+			&\mbox{if } \quad\rho_t>4 \mbox{ then}\\
+			&\quad\quad \ell_t=\sqrt{\frac{1-\beta_2^t}{v_t}}\\
+			&\quad\quad r_t=\sqrt{\frac{(\rho_t-4)(\rho_t-2)\rho_{\infty}}{(\rho_{\infty}-4)(\rho_{\infty}-2)\rho_t}}\\
+			&\quad\quad \theta_t=\theta_{t-1}-\alpha_tr_t\ell_t\hat{m_t}\mbox{ where } \alpha_t \mbox{ is step size}\\
+			& \mbox{else } \theta_t=\theta_{t-1}-\alpha_t\hat{m_t}
+		\end{aligned}
+	\end{equation*}
+
+	The RAdam optimizer computes the variance of adaptive learing rate and decide to use adaptive update rule for learning rate or not. This makes the model to avoid the bad local minima occur in early stage of traininig.
+	\section{Update strategy}
+	\subsection{stochastic,batch,minibatch trianinig}
+	There are three kinds of trainign methods for trainingwhich classified according to the batch sizes.
+
+	At first, The batch gradient descent computes the average of loss functions at all datapoints provided. In this case, we update parameters only once for single epoch. The batch gradient uses exact gradient for training. 
+
+	The batch gradient descent is computationally efficient due to fewer updates and its gradient is more stable in some problems. However, it is required to store all of data in the memory and easy to converge in local minima.
+
+	Secondly, the stochastic gradient descent or online learning uses single datapoint for single weight update. This is noisy update for weights and it allows to avoid local minima. 
+
+	The SGD updates the parameters very frequently and this can result faster learning. But this can be hard for parallelism because of the bottleneck in parameter servers.
+
+	Finally, The minibatch updates splits the training dataset into small batches which called minibatch and updates the parameters using each minibatchs. It updates the parameters (\# of batches)-times for single epoch.
 	
-	More formally, given $X\subset \rr^d$ of $(r-1)(d+1)+1$ points, there is a partition $X=X_1\cup \dots \cup X_r$ such that $\bigcap_{j=1}^r \conv X_j \ne \emptyset$. Such a partition is called a
-	\textit{Tverberg partition}. The number of points in this result is optimal, as a dimension-counting argument shows. In fact, if $X$ is in general enough position and in the partition $X=X_1\cup \ldots \cup X_r$ we have $1\le |X_j|\le d+1$ for every $j$, then $\bigcap_{j=1}^r \aff X_j$ is a single point if $|X|= (r-1)(d+1)+1$, and is empty if $|X|\le (r-1)(d+1)$.
+	The minibatch training takes the advantages of the batch gradient descent and stochastic gradient descent. However, we need to decide the size of minibatch to implement the algorithm. The batch size is commonly chosen for 32 but it can be tuned in validation.
+
+	\subsection{data parallelism}
+	All of optimizers described in previous sections updates parameters according to gradients of loss function. Because of the computation time issue, we parallelize the training process with respect to the data or model itself. In this section we will focus on the data parallelism.
+
+	Since the loss function is additive with respect to the partition of data, we can divide the dataset into partition and provide each partitions to different workers.Then the workers would compute the gradient of the loss function using provided data.
+
+	After workers compute gradients, they send their outputs to parameter server and the parameter server will collect the gradients to update the parameters. For parameter server there are various update rules to update weights from the gradient informations. Typically, there are famous updates rules called synchronous updates and asynchronous updates.
+
+	\begin{enumerate}
+		\item Synchronous SGD\\
+		In Synchronous SGD update, SSGD updates parameters using true gradient $G^{(t)}=\frac{1}{N}\sum_{l=1}^M G_l^{(t)}$ by waiting all workers to finish computing $G_l^{(t)}$.
+
+		\begin{algorithm}
+			\caption{SSGD worker $m$}
+			\SetAlgoLined
+			\textbf{Input} dataset $\mathcal{X}$, minibatch size $\mathcal{B}$
+
+			\For{$t=0,1,\cdots$}{
+				Wait to read $\theta^{(t)}$ from parameter server\;
+				$G_m^{(t)}:=0$\;
+				\For{$i=1,\cdots,\mathcal{B}$}{
+					Sample data $\tilde{x_{k,i}}$ from $\mathcal{X}$\;
+					$G_m^{(t)}\longleftarrow G_m^{(t)}+\frac{1}{\mathcal{B}}\nabla L(\tilde{x_{k,i}},\theta^{(t)})$
+				}
+			Send $G_m^{(t)}$ to parameter server
+			}
+		\end{algorithm}
+		\begin{algorithm}[H]
+			\caption{SSGD parameter server}
+			\SetAlgoLined
+			\textbf{Input} learning rate $\mu_t$ and number of workers $M$\;
+			initialize $t\longleftarrow 0$\;
+			initialize model $\theta^{(0)}$ \;
+			\Repeat{converges}{
+				Send $\theta^{(t)}$ to each workers\;
+				Wait for $G_1^{(t)},\cdots G_M^{(t)}$ from each workers\;
+				$\theta^{(t+1)}\longleftarrow\theta^{(t)}-\frac{\mu_t}{N}\sum_{l=1}^M G_l^{(t)}$\;
+				$t\longleftarrow t+1$
+			}
+		\end{algorithm}
+		
+		Since SSGD waits for all of the workers, the training speed depends on the slowest worker. Thus there is waste of time if the difference between fastest worker and slowest worker.
+
+		To make SSGD faster, additional workers can be helpful. If we use $k$ more workers and wait only first $M$ gradients we can save training time.
+		
+		However, since SSGD computes the true gradient of timestamp $t$, SSGD performs similarly with SGD without parallelism. 
+
+		\item Asynchronous SGD \cite{chen2016revisiting}
+		\newline
+		The ASGD worker computes the gradient of loss function similarly with SSGD worker. The different between SSGD and ASGD comes from the parameter server. 
+
+		The ASGD parameter server doesn't wait for the workers to finish computing gradients. It updates parameter $\theta^{t}$ immediately when the gradient $g_m$ is provided. This makes ASGD faster but leads to the new problem called stale gradient or delayed gradient problem.
+
+		The ASGD algorithm can be written as
+		\begin{algorithm}
+			\caption{ASGD worker $m$}
+			\SetAlgoLined
+			\textbf{Input} dataset $\mathcal{X}$, minibatch size $\mathcal{B}$
+
+			\For{$t=0,1,\cdots$}{
+				Read $\theta^{(t)}$ from parameter server\;
+				$g_m:=0$\;
+				\For{$i=1,\cdots,\mathcal{B}$}{
+					Sample data $\tilde{x_{i}}$ from $\mathcal{X}$\;
+					$g_m\longleftarrow g_m+\frac{1}{\mathcal{B}}\nabla L(\tilde{x_{i}},\theta^{(t)})$
+				}
+			Send $g_m$ to parameter server
+			}
+		\end{algorithm}
+		\begin{algorithm}
+			\caption{ASGD parameter server}
+			\SetAlgoLined
+			\textbf{Input} learning rate $\mu_t$ and number of workers $M$\;
+			initialize $t\longleftarrow 0$\;
+			initialize model $\theta^{(0)}$ \;
+			\Repeat{converges}{
+				Wait for $g_m$ from any worker\;
+				$\theta^{(t+1)}\longleftarrow\theta^{(t)}-\mu_t g_m$\;
+				$t\longleftarrow t+1$
+			}
+		\end{algorithm}
+	\end{enumerate}
+
+
+	More precisely, if timestamp of parameter server is $t+\tau$, the provided gradient $g_m$ with timestamp $t$ is not the gradient which is required at position $\theta^{(t+\tau)}$. This penalizes the accuracy of the model. However, there are various solutions for the stale gradient problem were introduced later.
+
+	\section{Post training}
+	The training process described in previous sections optimizes(minimzes) the loss function until it converges to the local minima. After the training, there are some additional methods for model compression. In this section we will how they works.
+	\subsection{Pruning}
+	The network pruning process eliminates the connection or nodes which affects little on prediction. In detail, we repeat two steps:
+	\begin{enumerate}
+		\item eliminate connection with small weight(i.e. smaller than chosen threshold)
+		\item train changed model using training data
+	\end{enumerate}
+
+	By pruning insignificant connection we can reduce the number of parameters and save memory and computational resources. According to (\cite{han2015deep}) The pruning can reduce number of parameters nearly 90\% without big penalty on accuracy.
+
+	From the success of pruning, it is possible to presume that training method described in previous sections can be improved.
+
+	\subsection{Low rank approximation}
+	Since the parameters of deep learning are marix formed, they can be approximated by low rank matrices. This can be performed by truncated singular value decomposition. More precisely, for given matrix $W$ we compute the singular value decomposition to represent $W$ as sum of rank 1 matrices
+	\begin{equation*}
+		W=U\Sigma V^T=\sum_{i=1}^{n}\sigma_i U_iV_i^T\mbox{ where } \sigma_1\geq\cdots\geq\sigma_n
+	\end{equation*}
+	and choose first $R$ of them we can find $\bar{W}=\sum_{i=1}^R\sigma_i U_iV_i^T$ which is closest matrix with $W$ of rank at most $R$.
+
+	The set of low rank matrices can be easily parametrized by fewer parameters because
+	\begin{equation*}
+		\{W\in Mat_{n\times n}(\mathbb{R})~|~rank(W)\leq R\}=\{W_1W_2~|~W_1\in Mat_{n\times R}(\mathbb{R}),W_2\in Mat_{R\times n}(\mathbb{R})\}.
+	\end{equation*}
+	this parametrization is easily implemented by inserting new hidden layer consist of $R$ nodes and linear activations.
+
+	Therefore, we can approximate the trained weights with low rank matrices and additionally train on reparametrized model function. This would reduce the number of parameters without large panalty of accuracy.
+
+	On CNN architecture, the weight used in convolutional layer is given with order 4 tensor. Similarly with the case of matrix formed weights, it is possible to decompose the tensors into sum of simple tensors using canonical polyadic decomposition, which is generalization of svd in tensors. In \cite{cheng2017survey}, It is reported that the tensor rank decomposition approach succeded to reduce the number of parameters without large penalty of accuracy.
 	
-	% The case $r=2$ was proved first by Radon, as a lemma in his proof of Helly's theorem.
-	
-	The last decade has seen an impressive sequence of results around Tverberg's theorem.  The purpose of this survey is to give a broad overview of  the current state of the field and point out key open problems.  Other surveys covering different aspects of Tverberg's theorem can be found in \cite{Eckhoff:1979bi, Eck93survey, Matousek:2002td, BBZ17survey, de2017discrete, BZ17}.
-	
-	The paper is organized as follows.  In sections \ref{section-topological} and \ref{section-colored} we describe the topological and colorful versions of Tverberg's theorem, which have received the most attention in recent years.  In sections \ref{section-intersection} and \ref{section-universal} we discuss a large number of variations and conjectures around Tverberg's theorem.  In Section \ref{section-applications} we describe some applications of Tverberg's theorem.  Finally, in Section \ref{section-spaces} we present Tverberg-type results where the settings have changed dramatically, such as Tverberg for convexity spaces or quantitative versions.  In that last section, we focus mostly on results which are related to geometry.
-	
-	\subsection{Interlude: a short history of Tverberg's theorem}
-	An early predecessor of Tverberg's theorem is Radon's lemma from 1921 \cite{Radon:1921vh, Eckhoff:1979bi}. Radon used it in his proof of Helly's theorem. It says that \textit{any set $X$ of $d+2$ points in $\rr^d$ can be split into two sets whose convex hulls intersect}. So it is the case $r=2$ of Tverberg's theorem. Its proof is simple: the $d+2$ vectors in $X$ have a nontrivial affine dependence $\sum_{x \in X}\al(x)x=0$ and  $\sum_{x \in X}\al(x)=0$. The sets $X_1=\{x \in X: \al(x)\ge 0\}$ and $X_2=\{x \in X: \al(x) < 0\}$ form a partition of $X$ and their convex hulls intersect, as one can easily check.
-	
-	Another result linked to this theorem is Rado's centerpoint theorem.  This states that \textit{for any set $X$ of $n$ points in $\rr^d$, there is a point $p$ such that any closed half-space that contains $p$ also contains at least $\left\lceil \frac{n}{d+1}\right\rceil$ points of $X$}. The standard proof of this result uses Helly's theorem. Tverberg's theorem implies it in few lines: setting $r=\left\lceil \frac{n}{d+1}\right\rceil$, there is a partition of $X$ into $r$ parts $X_1,\ldots,X_r$ and a point $p\in \rr^d$ such that $p \in \bigcap_{j=1}^r \conv X_j$. Then $p$ is a centerpoint of $X$: every closed halfspace containing $p$ contains at least one point from each $X_j$.
-	
-	In a paper entitled ``On $3N$ points in a plane'' Birch~\cite{Birch:1959} proves that any $3N$ points in the plane determine $N$ triangles that have a point in common. His motivation was the (planar) centerpoint theorem. Actually, he proves more, namely the case $d=2$ of Tverberg's theorem and states the general case as a conjecture.
-	
-	Tverberg's original motivation was also the centerpoint theorem and he learned about Birch's result and conjecture only later. He proved it first for $d=3$ in 1963, and in full generality in 1964.  Here is, in his own words, how he found the proof:  ``I recall that the weather was bitterly cold in Manchester. I awoke very early one morning shivering, as the electric heater in the hotel room had gone off, and I did not have an extra shilling to feed the meter. So, instead of falling back to sleep, I reviewed the problem once more, and then the solution dawned on me!'' \cite{tve:recollections}.
-	
-	\section{Topological versions}\label{section-topological}
-	
-	\section{Colorful versions}\label{section-colored}
-	
-	\section{The structure of Tverberg partitions}\label{section-intersection}
-	
-	\section{Universal Tverberg partitions}\label{section-universal}
-	
-	\section{Applications of Tverberg's theorem}\label{section-applications}
-	
-	\section{Tverberg-type results in distinct settings}\label{section-spaces}
-	
+	I will see more about this method in final survey of this course.
+	\nocite{alpaydin2020introduction}
 	\bibliographystyle{alpha}
 	\bibliography{references} % see references.bib for bibliography management
 	
